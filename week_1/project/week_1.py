@@ -48,12 +48,20 @@ def get_s3_data(context) -> List:
 
 @op
 def process_data(context, stocks: List) -> Aggregation:
-    date, high = None, float()
-    
+    # aggregate the stocks' high by date in a dictionary
+    aggr_stock_dict=dict()
     for stock in stocks:
-        if stock.high > high:
-            high = stock.high
-            date = stock.date
+        if str(stock.date) in aggr_stock_dict.keys():
+            sum_high = aggr_stock_dict[str(stock.date)] + stock.high
+            aggr_stock_dict.update({str(stock.date): sum_high})
+        else:
+            aggr_stock_dict[str(stock.date)] = stock.high
+
+    # find the highest daily stock
+    date, high = None, float()
+    for key, value in aggr_stock_dict.items():
+        if value > high:
+            date, high = key, value
 
     high_stock = {
         'date': date,
