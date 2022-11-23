@@ -88,4 +88,8 @@ def put_redis_data(context, highest_value: Aggregation):
 
 @job
 def week_1_pipeline():
-    put_redis_data(process_data(get_s3_data()))
+    put_redis_data(
+        process_data(
+            get_s3_data()
+        )
+    )
