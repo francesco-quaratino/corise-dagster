@@ -41,12 +41,20 @@ def csv_helper(file_name: str) -> Iterator[Stock]:
             yield Stock.from_list(row)
 
 
-@op(config_schema={"s3_key": String})
+@op(
+    config_schema={"s3_key": String}, 
+    out={
+        "raw_data": Out(is_required=True, dagster_type=List)
+    }
+)
 def get_s3_data(context) -> List:
     return list(csv_helper(context.op_config["s3_key"]))
 
 
-@op
+@op(
+    ins={"stocks": In(dagster_type=List, description="List of stocks.")},
+    out={"aggr_stocks": Out(is_required=True, dagster_type=Aggregation, description="Highest aggregated stock by day.")}
+)
 def process_data(context, stocks: List) -> Aggregation:
     # aggregate the stocks' high by date in a dictionary
     aggr_stock_dict=dict()
@@ -71,8 +79,10 @@ def process_data(context, stocks: List) -> Aggregation:
     return Aggregation(**high_stock)
 
 
-@op
-def put_redis_data(context, aggr: Aggregation):
+@op(
+    ins={"highest_value": In(dagster_type=Aggregation, description="Highest aggregated stock by day.")}
+)
+def put_redis_data(context, highest_value: Aggregation):
     pass
 
 
