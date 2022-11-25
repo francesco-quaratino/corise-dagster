@@ -43,7 +43,6 @@ class Stock(BaseModel):
             low=float(input_list[5]),
         )
 
-
 @usable_as_dagster_type(description="Aggregation of stock data")
 class Aggregation(BaseModel):
     date: datetime
@@ -74,6 +73,9 @@ def get_s3_data(context) -> Union[List[Stock], Any]:
         yield Output(None, "empty_stocks")
 
 
+def stocks_sortkey(Stock):
+    return Stock.high
+
 @op(
     description="Given a list of stocks return the top x Aggregations with the greatest high value",
     config_schema={"nlargest": int},
@@ -83,11 +85,10 @@ def get_s3_data(context) -> Union[List[Stock], Any]:
     out=DynamicOut()
 )
 def process_data(context, stocks: List[Stock]) -> Aggregation:
-    sorted_stocks = sorted(stocks, key= lambda stock: stock.high)
-    greatest_stock = sorted_stocks[-context.op_config["nlargest"]:]
+    greatest_stocks = nlargest(context.op_config["nlargest"], stocks, key = stocks_sortkey )
 
-    for stock in greatest_stock:
-        yield DynamicOutput(Aggregation(date=stock.date, high=stock.high), mapping_key=f"{randint(1,1000000)}")
+    for index, stock in enumerate(greatest_stocks):
+        yield DynamicOutput(Aggregation(date=stock.date, high=stock.high), mapping_key=str(index))
 
 
 @op(
