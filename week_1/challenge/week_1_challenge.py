@@ -2,7 +2,8 @@ import csv
 from datetime import datetime
 from heapq import nlargest
 from random import randint
-from typing import Iterator, List
+from typing import Iterator, List, Union
+
 
 from dagster import (
     Any,
@@ -41,7 +42,6 @@ class Stock(BaseModel):
             low=float(input_list[5]),
         )
 
-
 @usable_as_dagster_type(description="Aggregation of stock data")
 class Aggregation(BaseModel):
     date: datetime
@@ -55,19 +55,39 @@ def csv_helper(file_name: str) -> Iterator[Stock]:
             yield Stock.from_list(row)
 
 
-@op
-def get_s3_data():
-    pass
+@op(
+    description="Get a list of stocks from an S3 file",
+    config_schema={"s3_key": String},
+    out={
+        "stocks": Out(dagster_type=List[Stock], description="List of Stock objects in the data file.", is_required=False),
+        "empty_stocks": Out(dagster_type=Any, description="Message 'empty stocks'.", is_required=False)
+        },
+    tags={"kind": "s3"}
+)
+def get_s3_data(context) -> Union[List[Stock], Any]:
+    stocks = list(csv_helper(context.op_config["s3_key"]))
+    if stocks:
+        yield Output(stocks, "stocks")
+    else:
+        yield Output(None, "empty_stocks")
 
 
-@op
-def process_data():
-    pass
+def stocks_sortkey(Stock):
+    return Stock.high
 
+@op(
+    description="Given a list of stocks return the top x Aggregations with the greatest high value",
+    config_schema={"nlargest": int},
+    ins={
+        "stocks": In(dagster_type=List[Stock], description="List of Stock objects in the data file.")
+        },
+    out=DynamicOut()
+)
+def process_data(context, stocks: List[Stock]) -> Aggregation:
+    greatest_stocks = nlargest(context.op_config["nlargest"], stocks, key = stocks_sortkey )
 
-@op
-def put_redis_data():
-    pass
+    for index, stock in enumerate(greatest_stocks):
+        yield DynamicOutput(Aggregation(date=stock.date, high=stock.high), mapping_key=str(index))
 
 
 @op(
@@ -78,6 +98,19 @@ def empty_stock_notify(context, empty_stocks) -> Nothing:
     context.log.info("No stocks returned")
 
 
+@op(
+    description="Upload an Aggregation to Redis",
+    ins={"agg": In(dagster_type=Aggregation)},
+    tags={"kind": "redis"}
+    )
+def put_redis_data(context, agg: Aggregation) -> Nothing:
+    pass
+
+
 @job
 def week_1_challenge():
-    pass
+    stocks, empty_stock = get_s3_data()
+    empty_stock_notify(empty_stock)
+    process = process_data(stocks)
+    process.map(put_redis_data)
+
