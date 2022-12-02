@@ -73,11 +73,9 @@ def put_s3_data(context, highest_value: Aggregation) -> Nothing:
 
 @graph
 def week_2_pipeline():
-    put_redis_data(
-        process_data(
-            get_s3_data()
-        )
-    )
+    data = process_data(get_s3_data())
+    put_redis_data(data)
+    put_s3_data(data)
 
 
 local = {
