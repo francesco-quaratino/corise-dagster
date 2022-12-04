@@ -11,8 +11,8 @@ seed-paths: ["data"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-target-path: "target"
-log-path: "~/"
+target-path: "/opt/dagster/dagster_home/"
+log-path: "/opt/dagster/dagster_home/"
 clean-targets:
   - "target"
   - "dbt_modules"
