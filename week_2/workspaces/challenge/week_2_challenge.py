@@ -40,7 +40,7 @@ def insert_dbt_data(context, table_name):
 
 @graph
 def week_2_challenge():
-    dbt_run_test(
+    dbt_test_op(
         start_after= dbt_run_op(
             insert_dbt_data (
                 create_dbt_table()
