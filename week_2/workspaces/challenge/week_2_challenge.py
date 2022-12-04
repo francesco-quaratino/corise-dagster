@@ -40,7 +40,13 @@ def insert_dbt_data(context, table_name):
 
 @graph
 def week_2_challenge():
-    pass
+    dbt_run_test(
+        start_after= dbt_run_op(
+            insert_dbt_data (
+                create_dbt_table()
+            )
+        )
+    )
 
 
 docker = {
@@ -53,19 +59,29 @@ docker = {
                 "database": "postgres_db",
             }
         },
-        "dbt": {
-            "config": {
-                "project_dir": DBT_PROJECT_PATH,
-                "profiles_dir": DBT_PROJECT_PATH,
-                "ignore_handled_error": True,
-                "target": "test",
-            },
-        },
+        #"dbt": {
+        #    "config": {
+        #        "project_dir": DBT_PROJECT_PATH,
+        #        "profiles_dir": DBT_PROJECT_PATH,
+        #        "target": "test",
+        #        "ignore_handled_error": True,
+        #    },
+        #},
     },
     "ops": {"create_dbt_table": {"config": {"table_name": "analytics.dbt_table"}}},
 }
 
+my_dbt_resource = dbt_cli_resource.configured(
+    {
+        "project_dir": DBT_PROJECT_PATH,
+        "profiles_dir": DBT_PROJECT_PATH,
+        "ignore_handled_error": True,
+        "target": "test",
+    }
+)
 
 week_2_challenge_docker = week_2_challenge.to_job(
     name="week_2_challenge_docker",
+    config=docker,
+    resource_defs = {"database": postgres_resource, "dbt": my_dbt_resource}
 )
