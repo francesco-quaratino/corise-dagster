@@ -90,7 +90,7 @@ services:
     profiles:
       - dagster
     volumes:
-      - ./${COURSE_WEEK}/postgres-dagster:/var/lib/postgresql/data
+      - ./${COURSE_WEEK}/.postgres-dagster:/var/lib/postgresql/data
     networks:
       - dagster_network
 
